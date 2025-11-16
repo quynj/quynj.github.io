@@ -1,469 +1,257 @@
 <!DOCTYPE html>
-<html lang="zh" class="scroll-smooth">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quynj Blog</title>
-    <!-- 引入 Tailwind CSS CDN -->
+    <title>Quynj - Personal Portfolio</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 ScrollReveal.js CDN 用于滚动进入动画 -->
-    <script src="https://unpkg.com/scrollreveal"></script>
-    <!-- 引入 Lucide Icons CDN for sleek SVG icons -->
+    <!-- Three.js for animated 3D background -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Lucide Icons for SVG icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500&family=Inter:wght@300;800&display=swap" rel="stylesheet">
     <style>
-        /* 配置 Tailwind */
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'background-dark': '#0A0A1F',
-                        'accent-cyan': '#00F0FF',
-                        'card-bg': 'rgba(18, 18, 50, 0.7)',
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    boxShadow: {
-                        'neon': '0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3)',
-                    }
-                }
-            }
-        }
-
-        /* 1. 柔性渐变背景 (Futuristic Blob Gradient) */
+        html, body { height: 100%; }
         body {
-            background-color: #0A0A1F;
-            color: #E0E0F0;
+            min-height: 100vh; font-family: 'Inter', 'sans-serif'; overflow-x: hidden;
+            background: #0d1025;
+            color: #e1eaff;
+        }
+        /* 3D Canvas as fixed bg */
+        #bg-canvas {
+            position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0;
+            opacity: 0.18; pointer-events: none;
+        }
+        /* Glow shadow */
+        .glow { box-shadow: 0 0 24px 2px #0ffaff60; }
+        /* 代码块风格卡片 */
+        .code-block {
+            font-family: 'Fira Mono', monospace;
+            background: linear-gradient(120deg, #16213f 80%, #213156);
+            color: #90e0fa;
+            border-radius: 1rem;
+            border: 1.8px solid #09e2ff4d;
+            box-shadow: 0 4px 32px #00eaff3a;
+            padding: 1.5rem 2rem 1.2rem 2rem;
+            font-size: 1.1rem;
             position: relative;
-            overflow-x: hidden;
-            font-family: 'Inter', sans-serif;
         }
-
-        .blob-gradient {
-            position: absolute;
-            top: -20vh;
-            left: -20vw;
-            width: 80vw;
-            height: 80vh;
-            background: radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.15) 0%, rgba(10, 10, 31, 0) 70%);
-            animation: moveBlob 15s infinite alternate;
-            z-index: -1;
-            filter: blur(80px);
+        .code-block::before, .code-block::after {
+            position: absolute; font-size: 2rem; color: #26ffe6a1;
         }
-
-        .blob-gradient-2 {
-            position: absolute;
-            bottom: -20vh;
-            right: -20vw;
-            width: 90vw;
-            height: 90vh;
-            background: radial-gradient(circle at 50% 50%, rgba(150, 0, 255, 0.15) 0%, rgba(10, 10, 31, 0) 70%);
-            animation: moveBlob2 20s infinite alternate;
-            z-index: -1;
-            filter: blur(100px);
+        .code-block::before { content: "{"; left: 1rem; top: 1rem; }
+        .code-block::after { content: "}"; right: 1rem; bottom: 1rem; }
+        /* 滑入动画效果 */
+        .fade-up {
+            opacity: 0; transform: translateY(80px); transition: .8s cubic-bezier(.72,-0.05,.26,1.15);
         }
-
-        @keyframes moveBlob {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(20vw, 20vh) scale(1.1); }
-        }
-
-        @keyframes moveBlob2 {
-            0% { transform: translate(0, 0) scale(1.1); }
-            100% { transform: translate(-10vw, -15vh) scale(0.9); }
-        }
-
-        /* 2. 导航栏动画 */
-        .nav-scrolled {
-            background-color: rgba(10, 10, 31, 0.9);
-            backdrop-filter: blur(8px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease-in-out;
-        }
-
-        /* 3. 项目卡片过渡（用于过滤/排序动画）*/
-        .project-grid {
-            transition: height 0.5s ease-out; /* Smooth height change when filtering */
-        }
-        .project-card {
-            transition: transform 0.4s ease-out, opacity 0.4s ease-out;
-            will-change: transform, opacity;
-        }
-        .project-card.filtered {
-            opacity: 0;
-            transform: scale(0.8);
-            pointer-events: none;
-            height: 0;
-            margin: 0 !important; /* Important to collapse the space */
-            padding: 0 !important;
-            overflow: hidden;
+        .fade-up.appear {
+            opacity: 1; transform: translateY(0);
         }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="relative">
 
-    <!-- 柔性渐变背景元素 -->
-    <div class="blob-gradient"></div>
-    <div class="blob-gradient-2"></div>
+<canvas id="bg-canvas"></canvas>
 
-    <!-- 1. 导航栏 (带动画) -->
-    <header id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <a href="#home" class="text-2xl font-bold text-accent-cyan tracking-widest hover:text-white transition duration-300">
-                Q<span class="text-white">UYNJ</span>
-            </a>
-            <nav class="hidden md:flex space-x-8">
-                <a href="#home" class="nav-link text-gray-300 hover:text-accent-cyan transition duration-200">首页</a>
-                <a href="#skills" class="nav-link text-gray-300 hover:text-accent-cyan transition duration-200">技术栈</a>
-                <a href="#projects" class="nav-link text-gray-300 hover:text-accent-cyan transition duration-200">项目经验</a>
-                <a href="#contact" class="nav-link text-gray-300 hover:text-accent-cyan transition duration-200">联系方式</a>
-            </nav>
-            <div class="md:hidden">
-                <!-- Mobile Menu Button (Placeholder) -->
-                <button class="text-gray-300 hover:text-accent-cyan focus:outline-none">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
+<!-- Navbar -->
+<header id="navbar" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-gradient-to-b from-[#111228cc] to-transparent backdrop-blur-xl shadow-none">
+    <nav class="max-w-7xl mx-auto px-4 py-5 flex justify-between items-center">
+        <a href="#home" class="text-2xl font-black tracking-widest text-teal-300 select-none">Quynj</a>
+        <div class="space-x-8 hidden md:inline-block">
+            <a href="#about" class="nav-link text-gray-300 hover:text-cyan-400 transition">About</a>
+            <a href="#skills" class="nav-link text-gray-300 hover:text-cyan-400 transition">Skills</a>
+            <a href="#projects" class="nav-link text-gray-300 hover:text-cyan-400 transition">Projects</a>
+            <a href="#contact" class="nav-link text-gray-300 hover:text-cyan-400 transition">Links</a>
+        </div>
+        <button class="md:hidden flex items-center px-2 py-1 text-cyan-400" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')"><i data-lucide="menu" class="w-7 h-7"></i></button>
+    </nav>
+    <div id="mobileMenu" class="hidden md:hidden px-6 pt-2 pb-3 bg-[#111228f5]">
+        <a href="#about" class="block my-2 text-gray-200 hover:text-cyan-400">About</a>
+        <a href="#skills" class="block my-2 text-gray-200 hover:text-cyan-400">Skills</a>
+        <a href="#projects" class="block my-2 text-gray-200 hover:text-cyan-400">Projects</a>
+        <a href="#contact" class="block my-2 text-gray-200 hover:text-cyan-400">Links</a>
+    </div>
+</header>
+
+<main class="relative z-10">
+
+<!-- Hero/About Section -->
+<section id="about" class="relative flex flex-col items-center justify-center min-h-[95vh] max-w-5xl mx-auto pt-32 pb-20" style="z-index:1;">
+    <div class="flex flex-col md:flex-row w-full items-center gap-10 justify-center">
+        <!-- 个人代码块卡片 -->
+        <div class="code-block fade-up w-full md:w-[380px] md:min-w-[340px] shadow-2xl">
+<pre><span class="text-teal-400">const</span> me = &#123;
+  <span class="text-yellow-400">name</span>: <span class="text-rose-400">"Quynj"</span>,
+  <span class="text-yellow-400">age</span>: <span class="text-blue-400">20</span>,
+  <span class="text-yellow-400">isStudent</span>: <span class="text-cyan-300">true</span>,
+  <span class="text-yellow-400">major</span>: <span class="text-sky-400">"Software technology"</span>,
+  <span class="text-yellow-400">hobbies</span>: [<span class="text-pink-400">"Music"</span>, <span class="text-pink-400">"Coding"</span>],
+  <span class="text-yellow-400">location</span>: <span class="text-emerald-300">"Fujian, China"</span>
+&#125;</pre>
+        </div>
+        <!-- 自我介绍块 -->
+        <div class="flex-1 fade-up">
+            <div class="px-3 py-1 mb-3 rounded-full bg-gradient-to-r from-cyan-900/40 to-cyan-700/10 inline-block text-sm text-cyan-300 tracking-widest">Hi, I'm Quynj 👋</div>
+            <h1 class="text-4xl md:text-5xl font-extrabold drop-shadow-lg mb-4 text-white">全栈开发爱好者 <span class="text-cyan-300">/ 技术探索者</span></h1>
+            <p class="text-gray-300 text-lg mb-4 max-w-[32rem]">在校大学生，专注 Java Web、AI、云原生、全栈开发，热衷音乐与创新，期待用代码和创意点亮生活。</p>
+            <div class="flex gap-4 pt-1">
+                <a href="#projects" class="px-6 py-2 bg-cyan-400/90 text-gray-900 font-semibold rounded-lg shadow-md hover:scale-105 hover:-rotate-1 transition">项目经验</a>
+                <a href="mailto:example@email.com" class="px-6 py-2 border border-cyan-300 text-cyan-300 rounded-lg hover:bg-cyan-400/10 hover:text-white transition">联系我</a>
             </div>
         </div>
-    </header>
+    </div>
+</section>
 
-    <main class="pt-20">
-        <!-- 2. 首页/简介 (Hero Section) -->
-        <section id="home" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between min-h-[calc(100vh-80px)] pt-12">
-            <div class="md:w-3/5 space-y-6 reveal-left">
-                <p class="text-xl text-accent-cyan uppercase tracking-widest font-medium">在校大学生 / Java Web 开发者</p>
-                <h1 class="text-6xl sm:text-7xl lg:text-8xl font-extrabold text-white leading-tight">
-                    <span class="block">全栈潜力</span>
-                    <span class="block text-accent-cyan">技术探索者</span>
-                </h1>
-                <p class="text-gray-400 text-lg max-w-xl">
-                    专注于 Java Web 开发，拥有 Spring 全家桶、Vue3 等主流技术栈经验。可胜任开发、测试、运维等多角色工作，致力于构建高性能、高可用的应用系统。
-                </p>
-                <div class="flex space-x-4 pt-4">
-                    <a href="#projects" class="px-6 py-3 bg-accent-cyan text-background-dark font-semibold rounded-lg shadow-neon hover:shadow-white/50 transition duration-300 transform hover:scale-105">查看项目</a>
-                    <a href="mailto:example@email.com" class="px-6 py-3 border border-accent-cyan text-accent-cyan font-semibold rounded-lg hover:bg-accent-cyan/10 transition duration-300 transform hover:scale-105">联系我</a>
-                </div>
-            </div>
-            <div class="md:w-2/5 mt-12 md:mt-0 reveal-right flex justify-center">
-                <!-- 个人形象或未来感插画占位符 -->
-                <div class="w-64 h-64 lg:w-80 lg:h-80 bg-card-bg rounded-full border-4 border-accent-cyan/50 shadow-neon flex items-center justify-center animate-pulse">
-                    <span class="text-3xl text-gray-400">Profile Placeholder</span>
-                </div>
-            </div>
-        </section>
+<!-- 技能展示 -->
+<section id="skills" class="max-w-5xl mx-auto pt-10 pb-20">
+    <h2 class="text-3xl font-extrabold mb-12 text-cyan-200 text-center fade-up">技能栈</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-5 md:gap-8">
+        <!-- 动画卡片 -->
+        <div class="skill-card fade-up bg-[#181e3aee] rounded-xl p-5 flex flex-col items-center hover:scale-105 hover:shadow-cyan-400/30 hover:z-10 transition-all border border-cyan-300/10">
+            <i data-lucide="code" class="w-8 h-8 text-yellow-400 mb-2"></i>
+            <span class="font-semibold text-cyan-100">Java</span>
+            <span class="text-xs text-gray-400">Web/后端</span>
+        </div>
+        <div class="skill-card fade-up bg-[#181e3aee] rounded-xl p-5 flex flex-col items-center hover:scale-105 hover:shadow-cyan-400/30 hover:z-10 transition-all border border-cyan-300/10">
+            <i data-lucide="terminal-square" class="w-8 h-8 text-blue-400 mb-2"></i>
+            <span class="font-semibold text-cyan-100">Python</span>
+            <span class="text-xs text-gray-400">脚本&AI</span>
+        </div>
+        <div class="skill-card fade-up bg-[#181e3aee] rounded-xl p-5 flex flex-col items-center hover:scale-105 hover:shadow-cyan-400/30 hover:z-10 transition-all border border-cyan-300/10">
+            <i data-lucide="layers" class="w-8 h-8 text-emerald-300 mb-2"></i>
+            <span class="font-semibold text-cyan-100">Spring Boot/Cloud/AI</span>
+        </div>
+        <div class="skill-card fade-up bg-[#181e3aee] rounded-xl p-5 flex flex-col items-center hover:scale-105 hover:shadow-cyan-400/30 hover:z-10 transition-all border border-cyan-300/10">
+            <i data-lucide="globe" class="w-8 h-8 text-cyan-300 mb-2"></i>
+            <span class="font-semibold text-cyan-100">Vue3/Uniapp</span>
+            <span class="text-xs text-gray-400">前端</span>
+        </div>
+        <div class="skill-card fade-up bg-[#181e3aee] rounded-xl p-5 flex flex-col items-center hover:scale-105 hover:shadow-cyan-400/30 hover:z-10 transition-all border border-cyan-300/10">
+            <i data-lucide="database" class="w-8 h-8 text-fuchsia-300 mb-2"></i>
+            <span class="font-semibold text-cyan-100">数据库</span>
+            <span class="text-xs text-gray-400">PostgreSQL/MySQL/Redis</span>
+        </div>
+    </div>
+</section>
 
-        <!-- 3. 技术栈 (Skills Section) -->
-        <section id="skills" class="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-4xl font-bold text-white text-center mb-16 reveal-bottom">我的技术栈</h2>
+<!-- 项目展示 -->
+<section id="projects" class="max-w-5xl mx-auto pb-28">
+    <h2 class="text-3xl font-extrabold mb-12 text-cyan-200 text-center fade-up">项目经历</h2>
+    <div class="grid md:grid-cols-3 gap-7">
+        <div class="project-card fade-up bg-gradient-to-br from-[#14335c] to-[#162444cc] rounded-2xl p-5 border border-cyan-500/20 hover:scale-105 hover:shadow-xl hover:border-cyan-300 transition-all">
+            <span class="inline-block bg-cyan-800/30 px-3 py-1 rounded-full text-xs text-cyan-200 mb-2 glow">Java/云原生</span>
+            <div class="text-lg font-semibold mb-1 text-teal-200">分布式商城后端服务</div>
+            <div class="text-gray-400 text-xs mb-2">Spring Cloud/Alibaba&nbsp;|&nbsp;Nacos/Seata</div>
+            <p class="text-gray-300 text-sm mb-2">电商核心业务与服务治理、事务集群实践。</p>
+        </div>
+        <div class="project-card fade-up bg-gradient-to-br from-[#14335c] to-[#162444cc] rounded-2xl p-5 border border-cyan-500/20 hover:scale-105 hover:shadow-xl hover:border-cyan-300 transition-all">
+            <span class="inline-block bg-violet-800/30 px-3 py-1 rounded-full text-xs text-violet-200 mb-2 glow">全栈应用</span>
+            <div class="text-lg font-semibold mb-1 text-cyan-200">极简博客管理系统</div>
+            <div class="text-gray-400 text-xs mb-2">Spring Boot &amp; Vue3</div>
+            <p class="text-gray-300 text-sm mb-2">支持Markdown编辑器和全文搜索的全栈博客。</p>
+        </div>
+        <div class="project-card fade-up bg-gradient-to-br from-[#14335c] to-[#162444cc] rounded-2xl p-5 border border-cyan-500/20 hover:scale-105 hover:shadow-xl hover:border-cyan-300 transition-all">
+            <span class="inline-block bg-green-700/30 px-3 py-1 rounded-full text-xs text-emerald-200 mb-2 glow">工具/运维</span>
+            <div class="text-lg font-semibold mb-1 text-cyan-200">CI/CD自动化脚本集</div>
+            <div class="text-gray-400 text-xs mb-2">Python/Shell</div>
+            <p class="text-gray-300 text-sm mb-2">自动化部署及监控脚本，助力提效。</p>
+        </div>
+    </div>
+</section>
 
-            <!-- 编程语言 -->
-            <div class="mb-12 reveal-item">
-                <h3 class="text-2xl font-semibold text-accent-cyan mb-6 border-b border-gray-700 pb-2">编程语言</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                    <div class="p-4 bg-card-bg rounded-xl hover:shadow-neon transition duration-300 flex items-center space-x-3">
-                        <i data-lucide="code" class="w-6 h-6 text-yellow-500"></i>
-                        <span class="text-lg">Java (Web 擅长)</span>
-                    </div>
-                    <div class="p-4 bg-card-bg rounded-xl hover:shadow-neon transition duration-300 flex items-center space-x-3">
-                        <i data-lucide="code" class="w-6 h-6 text-blue-400"></i>
-                        <span class="text-lg">Python (辅助/脚本)</span>
-                    </div>
-                </div>
-            </div>
+<!-- 社交链接与联系 -->
+<section id="contact" class="max-w-4xl mx-auto pb-20 text-center">
+    <h2 class="text-3xl font-extrabold mb-8 text-cyan-200 fade-up">社交与更多</h2>
+    <div class="flex justify-center gap-8 mb-8">
+        <a href="https://github.com/quynj" target="_blank" class="group flex flex-col items-center hover:scale-110 transition">
+            <i data-lucide="github" class="w-10 h-10 mb-1 text-gray-200 group-hover:text-cyan-400"></i>
+            <span class="text-xs text-gray-300">GitHub</span>
+        </a>
+        <a href="https://space.bilibili.com/1169626104" target="_blank" class="group flex flex-col items-center hover:scale-110 transition">
+            <i data-lucide="video" class="w-10 h-10 mb-1 text-pink-200 group-hover:text-pink-400"></i>
+            <i class="fa-brands fa-bilibili"></i>
+            <span class="text-xs text-gray-300">Bilibili</span>
+        </a>
+    </div>
+    <div class="text-xs text-gray-400">Made with ❤️ and <span class="text-cyan-400">Web Tech</span> | Copyright &copy; 2025 Quynj</div>
+</section>
+</main>
 
-            <!-- 核心框架 -->
-            <div class="mb-12 reveal-item">
-                <h3 class="text-2xl font-semibold text-accent-cyan mb-6 border-b border-gray-700 pb-2">核心框架与前端</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                    <div class="skill-card">Spring AI / MVC / Boot</div>
-                    <div class="skill-card">Spring Cloud / Alibaba</div>
-                    <div class="skill-card">Vue3 (前端基础)</div>
-                    <div class="skill-card">UniApp (跨平台)</div>
-                </div>
-            </div>
+<script>
+    // Lucide Icons
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+    });
 
-            <!-- 中间件与数据库 -->
-            <div class="mb-12 reveal-item">
-                <h3 class="text-2xl font-semibold text-accent-cyan mb-6 border-b border-gray-700 pb-2">中间件与数据存储</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                    <div class="skill-card">Nacos (服务治理)</div>
-                    <div class="skill-card">Seata (分布式事务)</div>
-                    <div class="skill-card">RabbitMQ (消息队列)</div>
-                    <div class="skill-card">PostgreSQL / MySQL</div>
-                    <div class="skill-card">Redis (缓存/KV)</div>
-                    <div class="skill-card">MongoDB (NoSQL)</div>
-                </div>
-            </div>
-
-            <!-- 工具与DevOps -->
-            <div class="reveal-item">
-                <h3 class="text-2xl font-semibold text-accent-cyan mb-6 border-b border-gray-700 pb-2">常用工具与实践</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                    <div class="skill-card">IDEA / Cursor (IDE)</div>
-                    <div class="skill-card">Git (版本控制)</div>
-                    <div class="skill-card">DevOps 基础</div>
-                    <div class="skill-card">测试与运维实践</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 4. 项目经验 (Projects Section) -->
-        <section id="projects" class="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-4xl font-bold text-white text-center mb-12 reveal-bottom">项目经验</h2>
-
-            <!-- 过滤/排序 UI -->
-            <div class="flex flex-wrap justify-center space-x-4 mb-10 reveal-item">
-                <button class="filter-btn active" data-filter="all">全部</button>
-                <button class="filter-btn" data-filter="java">Java 后端</button>
-                <button class="filter-btn" data-filter="fullstack">全栈应用</button>
-                <button class="filter-btn" data-filter="cloud">微服务/云</button>
-                <button class="filter-btn" data-filter="tool">工具/组件</button>
-
-                <select id="sort-select" class="ml-4 px-4 py-2 rounded-lg bg-card-bg border border-gray-700 text-gray-300 focus:ring-accent-cyan focus:border-accent-cyan transition duration-200">
-                    <option value="default">默认排序</option>
-                    <option value="year-desc">时间倒序</option>
-                    <option value="year-asc">时间正序</option>
-                </select>
-            </div>
-
-            <!-- 项目列表容器 (Grid) -->
-            <div id="project-list" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Project cards will be rendered here by JavaScript -->
-            </div>
-        </section>
-
-        <!-- 5. 兴趣爱好与链接 (Contact Section) -->
-        <section id="contact" class="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-4xl font-bold text-white text-center mb-12 reveal-bottom">社交与兴趣</h2>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <!-- 兴趣爱好 -->
-                <div class="bg-card-bg p-8 rounded-2xl border border-accent-cyan/20 reveal-left">
-                    <h3 class="text-2xl font-semibold text-accent-cyan mb-4 flex items-center space-x-2">
-                        <i data-lucide="music-3" class="w-6 h-6"></i>
-                        <span>兴趣爱好</span>
-                    </h3>
-                    <ul class="space-y-3 text-gray-400">
-                        <li><span class="text-white">音乐：</span> 邓紫棋、汤令山、流行音乐 - 寻找灵感与节奏感。</li>
-                        <li><span class="text-white">摄影：</span> 捕捉瞬间的美好 - 培养对细节的敏锐观察力。</li>
-                    </ul>
-                </div>
-
-                <!-- 社交链接 -->
-                <div class="bg-card-bg p-8 rounded-2xl border border-accent-cyan/20 reveal-right">
-                    <h3 class="text-2xl font-semibold text-accent-cyan mb-6 flex items-center space-x-2">
-                        <i data-lucide="link-2" class="w-6 h-6"></i>
-                        <span>作品与社交</span>
-                    </h3>
-                    <div class="flex space-x-6">
-                        <a href="https://github.com/quynj" target="_blank" class="social-link group">
-                            <i data-lucide="github" class="w-10 h-10 text-gray-300 group-hover:text-accent-cyan transition duration-300"></i>
-                            <span class="text-sm text-gray-400 block mt-1">GitHub</span>
-                        </a>
-                        <a href="https://space.bilibili.com/1169626104" target="_blank" class="social-link group">
-                            <!-- Custom BiliBili Icon Placeholder (Using a generic video icon as a proxy) -->
-                            <i data-lucide="play-circle" class="w-10 h-10 text-gray-300 group-hover:text-red-500 transition duration-300"></i>
-                            <span class="text-sm text-gray-400 block mt-1">Bilibili</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- 6. 底部 Footer -->
-    <footer class="mt-12 py-8 border-t border-gray-800/50 text-center text-gray-500">
-        <p>Copyright &copy; 2025 Quynj Portfolio. All Rights Reserved.</p>
-    </footer>
-
-    <!-- JavaScript 逻辑 -->
-    <script>
-        // --- Custom Utility Classes for simplicity ---
-        const skillCardClass = "p-4 bg-card-bg rounded-xl hover:shadow-neon transition duration-300 text-center text-lg flex items-center justify-center border border-gray-700/50";
-        const filterBtnClass = "filter-btn px-4 py-2 rounded-full text-sm font-medium transition duration-200";
-
-        // Inject custom class styles
-        document.querySelectorAll('.skill-card').forEach(el => el.className = skillCardClass);
-        document.querySelectorAll('.filter-btn').forEach(el => {
-            el.className += ` ${filterBtnClass} bg-card-bg text-gray-400 hover:text-accent-cyan hover:border-accent-cyan/50 border border-transparent`;
+    // 3D Background - Animated Particles (Three.js)
+    let camera, scene, renderer, particles, particleCount = 110, geo;
+    function initBG() {
+        const canvas = document.getElementById('bg-canvas');
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(65, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.z = 6;
+        renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:true, alpha:true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        let positions = [], colors = [], color = new THREE.Color();
+        geo = new THREE.BufferGeometry();
+        for(let i=0;i<particleCount;i++){
+            positions.push((Math.random()-0.5)*13, (Math.random()-0.5)*8, (Math.random()-0.5)*15);
+            color.setHSL(0.51+Math.random()*0.09, 0.74, 0.52+Math.random()*0.17);
+            colors.push(color.r, color.g, color.b);
+        }
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({ size:0.17, vertexColors:true, opacity:0.83, transparent:true, blending:THREE.AdditiveBlending });
+        particles = new THREE.Points(geo, material); scene.add(particles);
+        window.addEventListener('resize', ()=>{
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        document.querySelector('.filter-btn.active').classList.add('bg-accent-cyan/10', 'text-accent-cyan', 'border-accent-cyan');
-
-
-        // --- Mock Project Data ---
-        const MOCK_PROJECTS = [
-            { id: 1, title: '分布式商城后端服务', desc: '基于 Spring Cloud Alibaba 构建的电商核心业务集群，使用 Nacos、Seata 保证服务治理和事务一致性。', tech: 'Java, Spring Cloud, Nacos, Seata, MySQL', category: ['java', 'cloud'], year: 2024 },
-            { id: 2, title: '极简博客管理系统', desc: '全栈项目，前端采用 Vue3，后端 Spring Boot，支持 Markdown 编辑和全文检索。', tech: 'Java, Spring Boot, Vue3, Redis, PostgreSQL', category: ['java', 'fullstack'], year: 2023 },
-            { id: 3, title: '跨平台任务清单应用', desc: '使用 UniApp 实现的移动端/Web端任务管理工具，提供离线存储和云同步功能。', tech: 'UniApp, Vue3, MongoDB', category: ['fullstack', 'tool'], year: 2024 },
-            { id: 4, title: 'CI/CD 自动化脚本集', desc: 'Python 脚本，用于自动化部署和简单的运维监控任务，提升开发效率。', tech: 'Python, DevOps, Shell', category: ['tool'], year: 2022 },
-            { id: 5, title: '高性能数据缓存中间件', desc: '模拟 Redis 实现基础的键值存储和LRU淘汰机制，加深对缓存原理的理解。', tech: 'Java, Data Structure, Netty', category: ['java', 'tool'], year: 2023 },
-        ];
-
-        let currentProjects = [...MOCK_PROJECTS];
-
-        /**
-         * Renders the project cards into the DOM.
-         * @param {Array} projects - Array of project objects to render.
-         * @param {string} filter - The currently active filter category.
-         */
-        function renderProjects(projects, filter) {
-            const container = document.getElementById('project-list');
-            // Store the initial height for the transition effect
-            const initialHeight = container.clientHeight;
-            
-            let html = '';
-            
-            // Generate HTML for all mock projects
-            MOCK_PROJECTS.forEach(project => {
-                const isFiltered = filter !== 'all' && !project.category.includes(filter);
-                const cardClass = `project-card p-6 bg-card-bg rounded-xl border border-gray-700/50 hover:border-accent-cyan/50 hover:shadow-neon ${isFiltered ? 'filtered' : ''}`;
-                
-                html += `
-                    <div class="${cardClass}" data-category="${project.category.join(',')}" data-year="${project.year}" id="project-${project.id}">
-                        <h4 class="text-xl font-bold text-accent-cyan mb-2">${project.title}</h4>
-                        <p class="text-sm text-gray-400 mb-3">${project.year} | ${project.category.map(c => c.toUpperCase()).join('/')}</p>
-                        <p class="text-gray-300 mb-4">${project.desc}</p>
-                        <p class="text-sm text-gray-500 italic">技术栈: ${project.tech}</p>
-                        <a href="#" class="inline-flex items-center text-accent-cyan mt-3 hover:text-white transition duration-200">
-                            详情 <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
-                        </a>
-                    </div>
-                `;
-            });
-
-            container.innerHTML = html;
-            
-            // Force reflow and set new height for transition
-            container.style.height = `${initialHeight}px`; // Start transition from current height
-            // We use requestAnimationFrame to ensure the DOM update is painted before setting auto height
-            requestAnimationFrame(() => {
-                // Now, calculate the height of visible elements (needed for smooth collapse/expand)
-                const visibleCards = Array.from(container.children).filter(c => !c.classList.contains('filtered'));
-                let newHeight = 0;
-                if (visibleCards.length > 0) {
-                    // Simple height approximation based on visible elements
-                    const rows = Math.ceil(visibleCards.length / (window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1));
-                    newHeight = visibleCards[0].offsetHeight * rows + (rows - 1) * 32; // Card height + gap (8*4=32px)
-                }
-
-                // Apply auto height for the end of the transition (safer than trying to calculate exact pixel height)
-                container.style.height = 'auto'; 
-                lucide.createIcons(); // Re-create icons after DOM update
-            });
+        document.addEventListener('mousemove', e=>{
+            const mx = (e.clientX/window.innerWidth)*2-1, my = -(e.clientY/window.innerHeight)*2+1;
+            camera.position.x += (mx*1.2-camera.position.x)*0.04;
+            camera.position.y += (my*0.7-camera.position.y)*0.04;
+            camera.lookAt(scene.position);
+        });
+    }
+    let frame = 0;
+    function animateBG() {
+        requestAnimationFrame(animateBG);
+        particles.rotation.y+=0.0015;
+        particles.rotation.x+=0.0006;
+        let pos=geo.attributes.position.array;
+        for(let i=0;i<particleCount;i++){
+            let idx=i*3;
+            pos[idx+0]+=(Math.sin(frame*0.012+i*7)*0.0009);
+            pos[idx+1]+=(Math.cos(frame*0.013+i*3)*0.0007);
         }
-
-
-        /**
-         * Sets up event listeners for project filtering and sorting.
-         */
-        function setupProjectInteractions() {
-            const filterButtons = document.querySelectorAll('.filter-btn');
-            const sortSelect = document.getElementById('sort-select');
-
-            filterButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    // Update active button state
-                    filterButtons.forEach(btn => {
-                        btn.classList.remove('bg-accent-cyan/10', 'text-accent-cyan', 'border-accent-cyan');
-                        btn.classList.add('bg-card-bg', 'text-gray-400', 'border-transparent');
-                    });
-                    button.classList.add('bg-accent-cyan/10', 'text-accent-cyan', 'border-accent-cyan');
-                    button.classList.remove('bg-card-bg', 'text-gray-400', 'border-transparent');
-
-                    const filter = button.getAttribute('data-filter');
-                    applyFilterAndSort(filter, sortSelect.value);
-                });
-            });
-
-            sortSelect.addEventListener('change', (e) => {
-                const activeFilter = document.querySelector('.filter-btn.text-accent-cyan').getAttribute('data-filter');
-                applyFilterAndSort(activeFilter, e.target.value);
-            });
-
-            // Initial render
-            applyFilterAndSort('all', 'default');
+        geo.attributes.position.needsUpdate=true;
+        renderer.render(scene, camera);
+        frame++;
+    }
+    window.onload = function() {
+        if(typeof THREE !== "undefined") {
+            initBG();
+            animateBG();
         }
+        // 入场动画
+        setTimeout(() =>
+            document.querySelectorAll('.fade-up').forEach((d,i)=>{
+                setTimeout(()=>d.classList.add('appear'), 120*i)
+            })
+        , 350);
 
-        /**
-         * Applies the filter and sort logic and re-renders the projects.
-         */
-        function applyFilterAndSort(filter, sort) {
-            // 1. Filtering is handled by the CSS/JS in renderProjects for smooth animation.
-            // 2. Sorting (done in-memory before rendering to ensure correct order)
-            currentProjects = [...MOCK_PROJECTS];
-            
-            if (sort === 'year-desc') {
-                currentProjects.sort((a, b) => b.year - a.year);
-            } else if (sort === 'year-asc') {
-                currentProjects.sort((a, b) => a.year - b.year);
-            } else {
-                currentProjects.sort((a, b) => a.id - b.id); // Default to ID order
-            }
-
-            // Re-render, allowing CSS/JS to handle the filtered visual state
-            renderProjects(currentProjects, filter);
-        }
-
-
-        /**
-         * Initializes ScrollReveal for sleek entry animations.
-         */
-        function initScrollReveal() {
-            ScrollReveal({
-                distance: '60px',
-                duration: 1200,
-                delay: 200,
-                reset: false // Only animate once
-            });
-
-            // Hero section animations
-            ScrollReveal().reveal('.reveal-left', { origin: 'left', interval: 100 });
-            ScrollReveal().reveal('.reveal-right', { origin: 'right', interval: 100 });
-            ScrollReveal().reveal('.reveal-bottom', { origin: 'bottom', interval: 100 });
-            
-            // Staggered reveal for skills and project lists
-            ScrollReveal().reveal('.reveal-item', { interval: 100 });
-            ScrollReveal().reveal('.skill-card', { interval: 50 });
-            // Project cards are dynamically added, the animation is tied to the section reveal
-        }
-
-        /**
-         * Handles the dynamic behavior of the navigation bar (sticky background).
-         */
-        function setupNavbar() {
-            const navbar = document.getElementById('navbar');
-            
-            const checkScroll = () => {
-                if (window.scrollY > 50) {
-                    navbar.classList.add('nav-scrolled');
-                } else {
-                    navbar.classList.remove('nav-scrolled');
-                }
-            };
-
-            window.addEventListener('scroll', checkScroll);
-            checkScroll(); // Check on load
-        }
-
-
-        // --- Main Initialization ---
-        window.onload = function() {
-            // Replaces text icons with actual Lucide SVGs
-            lucide.createIcons();
-            
-            setupNavbar();
-            setupProjectInteractions();
-            initScrollReveal();
-            
-            // Placeholder for Firebase Init (if database functionality was requested)
-            // const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            // const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-            // if (Object.keys(firebaseConfig).length > 0) {
-            //     // Initialize Firebase services here
-            //     // ...
-            // }
-        };
-    </script>
+        // 导航栏滚动透明度动画
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', ()=>{
+            if(window.scrollY>65)
+                navbar.classList.add('shadow-lg','backdrop-blur-xl','bg-[#111228ef]');
+            else
+                navbar.classList.remove('shadow-lg','backdrop-blur-xl','bg-[#111228ef]');
+        });
+    }
+</script>
 </body>
 </html>
