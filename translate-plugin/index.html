@@ -262,12 +262,39 @@
     // --- Logic is refined for full URL support and custom models ---
 
     const DEFAULT_BASE_URL = "https://api.openai.com/v1/chat/completions";
-    const DEFAULT_MODEL = "gpt-3.5-turbo";
+    const DEFAULT_MODEL = "gpt-4o-mini";
     const DEFAULT_PROMPT = `You are a professional dictionary and translator assistant. 
     Analyze the user input. 
     1. If the input is a single word or a short idiomatic phrase, act as a Dictionary. Return a JSON object with a "type" of "dictionary" and a "content" array. Each item must have "pos" (e.g., n., v.) and "meaning".
     2. If the input is a sentence, act as a Translator. Return a JSON object with "type": "translation" and "content": "translated text".
     Format: {"type": "...", "content": ...}`;
+    const RESPONSE_JSON_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "type": {
+                "type": "string",
+                "enum": ["dictionary", "translation"]
+            },
+            "content": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "pos": { "type": "string" },
+                                "meaning": { "type": "string" }
+                            },
+                            "required": ["pos", "meaning"]
+                        }
+                    },
+                    { "type": "string" }
+                ]
+            }
+        },
+        "required": ["type", "content"]
+    };
+
 
     const els = {
         settingsBtn: document.getElementById('settingsBtn'),
@@ -389,7 +416,10 @@
                         { role: "user", content: userContent }
                     ],
                     temperature: config.temperature,
-                    response_format: { type: "json_schema" }
+                    response_format: { 
+                        type: "json_schema",
+                        json_schema: RESPONSE_JSON_SCHEMA
+                    }
                 })
             });
 
