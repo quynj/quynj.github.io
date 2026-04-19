@@ -87,6 +87,7 @@ const galleryLoopItems = computed(() =>
 const galleryMotion = computed(() => ({
   '--gallery-duration': `${Math.max(galleryItems.value.length * 7, 18)}s`,
 }))
+const siteBase = import.meta.env.BASE_URL
 
 function createParticles() {
   particles.value = Array.from({ length: 16 }, (_, index) => ({
@@ -130,6 +131,10 @@ function formatPhotoTitle(name, index) {
     .trim() || `Photo ${index + 1}`
 }
 
+function resolvePhotoSrc(file) {
+  return `${siteBase}photos/${encodeURIComponent(file)}`
+}
+
 async function loadGithubStats() {
   try {
     const [userRes, eventRes] = await Promise.all([
@@ -155,23 +160,22 @@ async function loadGithubStats() {
 
 async function loadGallery() {
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${profile.repo}/contents/photos?ref=main`,
-    )
+    const response = await fetch(`${siteBase}photos/manifest.json`, {
+      cache: 'no-store',
+    })
 
     if (!response.ok) {
-      throw new Error('Unable to read photos directory')
+      throw new Error('Unable to read photo manifest')
     }
 
     const files = await response.json()
-    const imageExtensions = /\.(avif|gif|jpe?g|png|webp)$/i
     const images = Array.isArray(files)
       ? files
-          .filter((file) => file.type === 'file' && imageExtensions.test(file.name))
+          .filter((file) => typeof file?.file === 'string')
           .map((file, index) => ({
-            id: file.sha ?? `${file.name}-${index}`,
-            title: formatPhotoTitle(file.name, index),
-            src: file.download_url,
+            id: file.id ?? `${file.file}-${index}`,
+            title: file.title ?? formatPhotoTitle(file.file, index),
+            src: resolvePhotoSrc(file.file),
           }))
       : []
 

@@ -41,8 +41,8 @@ npm run build
 - 发布逻辑：
   - 安装依赖
   - 执行 `npm run build`
-  - 将 `dist/` 内容同步到 `main`
-  - 自动提交并推送到 `main`
+  - 通过 GitHub Actions 将 `dist/` 发布到 `main`
+  - `main` 始终保存最新静态站点产物
 
 也就是说：
 
@@ -58,7 +58,7 @@ public/photos/
 - 你把相册图片放到 `public/photos/`
 - Vite 构建时会把它们原样复制到 `dist/photos/`
 - Actions 发布后，`main/photos/` 会保留这些图片
-- 页面通过 GitHub API 读取 `main` 分支下的 `photos/` 目录内容
+- 页面运行时读取站点内的 `/photos/manifest.json`
 
 支持格式：
 
