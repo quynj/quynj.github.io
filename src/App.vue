@@ -30,7 +30,6 @@ const particles = ref([])
 const githubStats = ref({ ...defaultStats })
 const galleryItems = ref([])
 const galleryStatus = ref('正在读取 GitHub photos...')
-const activeSlide = ref(0)
 
 const discussionAttrs = {
   src: 'https://giscus.app/client.js',
@@ -80,10 +79,14 @@ const statCards = computed(() => [
   },
 ])
 
-const currentSlide = computed(() => galleryItems.value[activeSlide.value] ?? null)
 const hasPhotos = computed(() => galleryItems.value.length > 0)
-
-let galleryTimer = null
+const shouldLoopGallery = computed(() => galleryItems.value.length > 1)
+const galleryLoopItems = computed(() =>
+  shouldLoopGallery.value ? [...galleryItems.value, ...galleryItems.value] : galleryItems.value,
+)
+const galleryMotion = computed(() => ({
+  '--gallery-duration': `${Math.max(galleryItems.value.length * 7, 18)}s`,
+}))
 
 function createParticles() {
   particles.value = Array.from({ length: 16 }, (_, index) => ({
@@ -125,39 +128,6 @@ function formatPhotoTitle(name, index) {
     .replace(/\.[^.]+$/, '')
     .replace(/[-_]+/g, ' ')
     .trim() || `Photo ${index + 1}`
-}
-
-function stopGalleryLoop() {
-  if (galleryTimer) {
-    window.clearInterval(galleryTimer)
-    galleryTimer = null
-  }
-}
-
-function startGalleryLoop() {
-  stopGalleryLoop()
-  if (galleryItems.value.length <= 1) {
-    return
-  }
-
-  galleryTimer = window.setInterval(() => {
-    activeSlide.value = (activeSlide.value + 1) % galleryItems.value.length
-  }, 4200)
-}
-
-function setSlide(index) {
-  activeSlide.value = index
-  startGalleryLoop()
-}
-
-function moveSlide(direction) {
-  if (!galleryItems.value.length) {
-    return
-  }
-
-  const total = galleryItems.value.length
-  activeSlide.value = (activeSlide.value + direction + total) % total
-  startGalleryLoop()
 }
 
 async function loadGithubStats() {
@@ -209,8 +179,6 @@ async function loadGallery() {
     galleryStatus.value = images.length
       ? `${images.length} 张图片已就绪，正在循环播放`
       : '还没有发现图片，等你把照片放进 `public/photos/` 后这里会自动出现'
-    activeSlide.value = 0
-    startGalleryLoop()
   } catch (error) {
     console.error(error)
     galleryItems.value = []
@@ -226,8 +194,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopGalleryLoop()
-
   const container = document.querySelector('#giscus-thread')
   if (container) {
     container.innerHTML = ''
@@ -313,14 +279,27 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="gallery-layout" :class="{ 'has-photos': hasPhotos }">
+        <div class="gallery-layout">
           <div class="gallery-stage">
-            <div v-if="currentSlide" class="gallery-frame">
-              <img
-                class="gallery-image"
-                :src="currentSlide.src"
-                :alt="currentSlide.title"
-              />
+            <div
+              v-if="hasPhotos"
+              class="gallery-frame"
+              :class="{ 'is-looping': shouldLoopGallery }"
+              :style="galleryMotion"
+            >
+              <div class="gallery-marquee">
+                <figure
+                  v-for="(item, index) in galleryLoopItems"
+                  :key="`${item.id}-${index}`"
+                  class="gallery-marquee-item"
+                >
+                  <img
+                    class="gallery-image"
+                    :src="item.src"
+                    :alt="item.title"
+                  />
+                </figure>
+              </div>
             </div>
 
             <div v-else class="gallery-empty">
@@ -328,21 +307,6 @@ onUnmounted(() => {
               <p>{{ galleryStatus }}</p>
             </div>
           </div>
-
-          <aside class="gallery-sidebar">
-            <div v-if="hasPhotos" class="thumb-grid">
-              <button
-                v-for="(item, index) in galleryItems"
-                :key="item.id"
-                type="button"
-                class="thumb-card"
-                :class="{ active: index === activeSlide }"
-                @click="setSlide(index)"
-              >
-                <img :src="item.src" :alt="item.title" />
-              </button>
-            </div>
-          </aside>
         </div>
       </section>
 
