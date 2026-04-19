@@ -1,0 +1,60 @@
+name: Deploy Vue Site To Main
+
+on:
+  push:
+    branches:
+      - codex-vue-source
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-to-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build site
+        run: npm run build
+
+      - name: Prepare main branch worktree
+        run: |
+          git fetch origin main
+          git worktree add deploy-worktree origin/main
+
+      - name: Publish dist to main
+        run: |
+          rsync -av --delete --exclude ".git" dist/ deploy-worktree/
+          touch deploy-worktree/.nojekyll
+
+      - name: Commit and push if changed
+        run: |
+          cd deploy-worktree
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git status --short | grep .; then
+            git add -A
+            git commit -m "deploy: publish from ${GITHUB_SHA}"
+            git push origin HEAD:main
+          else
+            echo "No changes to deploy"
+          fi
