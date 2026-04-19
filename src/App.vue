@@ -29,7 +29,7 @@ const defaultStats = {
 const particles = ref([])
 const githubStats = ref({ ...defaultStats })
 const galleryItems = ref([])
-const galleryStatus = ref('正在读取 GitHub assets...')
+const galleryStatus = ref('正在读取 GitHub photos...')
 const activeSlide = ref(0)
 
 const discussionAttrs = {
@@ -186,11 +186,11 @@ async function loadGithubStats() {
 async function loadGallery() {
   try {
     const response = await fetch(
-      `https://api.github.com/repos/${profile.repo}/contents/assets?ref=main`,
+      `https://api.github.com/repos/${profile.repo}/contents/photos?ref=main`,
     )
 
     if (!response.ok) {
-      throw new Error('Unable to read assets directory')
+      throw new Error('Unable to read photos directory')
     }
 
     const files = await response.json()
@@ -208,7 +208,7 @@ async function loadGallery() {
     galleryItems.value = images
     galleryStatus.value = images.length
       ? `${images.length} 张图片已就绪，正在循环播放`
-      : '还没有发现图片，等你把照片放进 `assets/` 后这里会自动出现'
+      : '还没有发现图片，等你把照片放进 `public/photos/` 后这里会自动出现'
     activeSlide.value = 0
     startGalleryLoop()
   } catch (error) {
@@ -324,7 +324,7 @@ onUnmounted(() => {
             </div>
 
             <div v-else class="gallery-empty">
-              <p class="panel-label">Waiting for assets</p>
+              <p class="panel-label">Waiting for photos</p>
               <p>{{ galleryStatus }}</p>
             </div>
           </div>

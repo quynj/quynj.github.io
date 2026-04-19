@@ -6,6 +6,9 @@ on:
       - codex-vue-source
   workflow_dispatch:
 
+# Source branch: codex-vue-source
+# Deploy branch: main
+
 permissions:
   contents: write
 
